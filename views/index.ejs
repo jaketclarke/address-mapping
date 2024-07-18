@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="en">
+
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>Address Mapping</title>
+
+        <!-- Load stylesheets-->
+        <link rel="stylesheet"
+            href="https://unpkg.com/leaflet/dist/leaflet.css" />
+        <link rel="stylesheet"
+            href="https://cdn.jsdelivr.net/gh/opencagedata/leaflet-opencage-geocoding@v2.0.0/dist/css/L.Control.OpenCageGeocoding.min.css" />
+        <link rel="stylesheet" href="../stylesheets/styles.css">
+    </head>
+
+    <body>
+        <!-- load scripts -->
+        <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+        <script
+            src="https://cdn.jsdelivr.net/gh/opencagedata/leaflet-opencage-geocoding@v2.0.0/dist/js/L.Control.OpenCageGeocoding.min.js"></script>
+
+        <!-- set a div for our map -->
+        <div id="mapone"></div>
+
+         <script>
+            // This key comes from a .env file
+            // !! It will be public - i.e ctrl + u in a browser
+            // !! in any kind of prod needs IP / domain restriction!
+            const mapsApiKey = '<%= mapsApiKey %>';
+        
+            let initialLng = 144.9
+            let initialLat = -37.8
+            let initialZoom = 8
+
+            var map = L.map('mapone').setView([initialLat, initialLng], initialZoom);
+
+            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+            }).addTo(map);
+
+            // Initialize the OpenCage Geocoding control
+            var options = {
+                key: mapsApiKey,
+                limit: 5,
+                position: 'topright',
+                placeholder: 'Search...',
+                errorMessage: 'Nothing found.',
+                showResultIcons: false,
+                collapsed: true,
+                expand: 'click',
+                addResultToMap: true
+            };
+
+            var control = L.Control.openCageGeocoding(options).addTo(map);
+
+            // Function to handle marker clicks
+            function handleMarkerClick(event) {
+                console.log('hello')
+                var marker = event.target;
+                var latLng = marker.getLatLng();
+                console.log('Marker clicked at:', latLng);
+            }
+
+            // Manually bind click event to markers on map load
+            map.on('layeradd', function (event) {
+                var layer = event.layer;
+                if (layer instanceof L.Marker) {
+                    layer.on('click', handleMarkerClick);
+                }
+            });
+
+            // !! FOR DEV
+            // Optional: Add a marker manually for testing
+            var testMarker = L.marker([initialLat, initialLng]).addTo(map);
+            testMarker.bindPopup("Test Marker");
+
+         </script>
+    </body>
+
+</html>
