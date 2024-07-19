@@ -144,6 +144,9 @@
                 // bind to a popup on the marker
                 marker.bindPopup("Federal Electorate: "+federalElec+"<br />"+"State Electorate: "+stateElec);
                 
+                // open the popup
+                marker.openPopup();
+
                 // set zoom level
                 map.setView(latLng, 14); // Set zoom level to 15 when marker is clicked
             
@@ -159,9 +162,9 @@
             });
 
             // // !! FOR DEV
-            // Optional: Add a marker manually for testing
-            var testMarker = L.marker([initialLat, initialLng]).addTo(map);
-            testMarker.bindPopup("Test Marker");
+            // // Optional: Add a marker manually for testing
+            // var testMarker = L.marker([initialLat, initialLng]).addTo(map);
+            // testMarker.bindPopup("Test Marker");
 
             // define overlay layers
             var state_electorates = L.tileLayer.wms(wmsUrl, {
