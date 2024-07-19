@@ -16,7 +16,8 @@ app.use(express.static(path.join(__dirname, 'public')));
 
 app.get('/', (req, res) => {
   res.render('index', {
-    mapsApiKey: process.env.OPENCAGE_GEOCODING_API_KEY
+    mapsApiKey: process.env.OPENCAGE_GEOCODING_API_KEY,
+    geoserverUrl: process.env.GEOSERVER_URL
   });
 });
 
