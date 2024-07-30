@@ -12,7 +12,8 @@
         <link rel="stylesheet"
             href="https://cdn.jsdelivr.net/gh/opencagedata/leaflet-opencage-geocoding@v2.0.0/dist/css/L.Control.OpenCageGeocoding.min.css" />
         <link rel="stylesheet"
-            href="http://code.ionicframework.com/ionicons/1.5.2/css/ionicons.min.css">
+            href="https://unpkg.com/leaflet-draw/dist/leaflet.draw.css" />
+        <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet-groupedlayercontrol/0.6.1/leaflet.groupedlayercontrol.min.css" />
         <link rel="stylesheet" href="../stylesheets/styles.css">
     </head>
 
@@ -21,7 +22,9 @@
         <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
         <script
             src="https://cdn.jsdelivr.net/gh/opencagedata/leaflet-opencage-geocoding@v2.0.0/dist/js/L.Control.OpenCageGeocoding.min.js"></script>
-
+        <script
+            src="https://unpkg.com/leaflet-draw/dist/leaflet.draw.js"></script>
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet-groupedlayercontrol/0.6.1/leaflet.groupedlayercontrol.min.js"></script>
         <!-- set a div for our map -->
         <div id="mapone"></div>
 
@@ -52,18 +55,40 @@
             // opencage geocoding control
             var options = {
                 key: mapsApiKey,
+                position: 'topright',
+                countrycode: 'AU',
                 limit: 5,
                 position: 'topright',
-                placeholder: 'Search...',
+                placeholder: 'Search for an address',
                 errorMessage: 'Nothing found.',
                 showResultIcons: false,
-                collapsed: true,
+                collapsed: false,
                 expand: 'click',
                 addResultToMap: true
             };
+
+            // for markers
+            const drawnItems = new L.FeatureGroup();
             
             // put control on map
             var control = L.Control.openCageGeocoding(options).addTo(map);
+
+            control.markGeocode = function(result) {
+
+                lat = result.center.lat
+                lng = result.center.lng
+
+                // add marker to layer                
+                var marker = L.marker([lat, lng]).addTo(drawnItems);
+
+                // move map to centre on new point
+                var zoomLevel = map.getZoom()
+
+                map.setView([lat, lng], zoomLevel); // set zoom level when marker added
+
+                maker.openPopup()
+
+            };
 
             // function to get properties from wfs query
             function fetchPropertiesFromWFS(queryUrl) {
@@ -142,13 +167,15 @@
                 console.log(federalElec, stateElec)
 
                 // bind to a popup on the marker
-                marker.bindPopup("Federal Electorate: "+federalElec+"<br />"+"State Electorate: "+stateElec);
+                marker.bindPopup("Current Federal Electorate: "+federalElec+"<br />"+"Current State Electorate: "+stateElec);
                 
                 // open the popup
                 marker.openPopup();
 
                 // set zoom level
-                map.setView(latLng, 14); // Set zoom level to 15 when marker is clicked
+                var zoomLevel = map.getZoom()
+
+                map.setView(latLng, zoomLevel); // Set zoom level to 15 when marker is clicked
             
             }
 
@@ -166,6 +193,21 @@
             // var testMarker = L.marker([initialLat, initialLng]).addTo(map);
             // testMarker.bindPopup("Test Marker");
 
+
+            var federal_electorates = L.tileLayer.wms(wmsUrl, {
+                layers: 'electorates:2022 Federal Electorates',
+                format: 'image/png',
+                styles: 'federal_electorates_no_labels',
+                transparent: true,
+            });
+
+            var federal_electorates_with_labels = L.tileLayer.wms(wmsUrl, {
+                layers: 'electorates:2022 Federal Electorates',
+                format: 'image/png',
+                styles: 'federal_electorates',
+                transparent: true,
+            });
+
             // define overlay layers
             var state_electorates = L.tileLayer.wms(wmsUrl, {
                 layers: 'electorates:State Electorates Current',
@@ -182,42 +224,72 @@
             });
 
 
-            var federal_electorates = L.tileLayer.wms(wmsUrl, {
-                layers: 'electorates:2022 Federal Electorates',
-                format: 'image/png',
-                styles: 'federal_electorates_no_labels',
-                transparent: true,
-            });
+            // Initialise Leaflet Draw control
+            map.addLayer(drawnItems);
 
-            var federal_electorates_with_labels = L.tileLayer.wms(wmsUrl, {
-                layers: 'electorates:2022 Federal Electorates',
-                format: 'image/png',
-                styles: 'federal_electorates',
-                transparent: true,
+            const drawControl = new L.Control.Draw({
+                draw: { 
+                    polygon: false,
+                    circlemarker: false,
+                    circle: false,
+                    rectangle: false,
+                    polyline: false
+                },
+                edit: {
+                    featureGroup: drawnItems,
+                    edit: false,
+                    remove: false
+                }
+            });
+            map.addControl(drawControl);
+
+            // Handle the creation of new markers
+            map.on(L.Draw.Event.CREATED, function (e) {
+                const layer = e.layer;
+                drawnItems.addLayer(layer);
             });
 
             // Creating an overlays object
-            var overlays = {
-                "Federal Electorates": federal_electorates,
-                "State Electorates": state_electorates,
-                "Federal Electorates with Labels": federal_electorates_with_labels,
-                "State Electorates with Labels": state_electorates_with_labels
-            };
+            // var overlays = {
+            //     "Federal Electorates": federal_electorates,
+            //     "Federal Electorates with Labels": federal_electorates_with_labels,
+            //     "State Electorates": state_electorates,
+            //     "State Electorates with Labels": state_electorates_with_labels,
+            //     "Points Drawn": drawnItems
+            // };
 
             var baseLayers = {
                 "OpenStreetMap": osmBaseLayer,
             };
 
-            // add control to map
-            L.control.layers(baseLayers, overlays, {
+            var groupedOverlays = {
+                "Current Federal Electorates": {
+                    "Borders + Labels": federal_electorates_with_labels,
+                    "Borders": federal_electorates
+                },
+                "Current State Electorates": {
+                    "Borders + Labels": state_electorates_with_labels,
+                    "Borders": state_electorates
+                }
+            };
+
+            var groupedLayerOptions = {
                 position: 'bottomright',
                 collapsed: false // false to have the control always open
-            }).addTo(map);
+            }
+
+            L.control.groupedLayers(baseLayers, groupedOverlays, groupedLayerOptions).addTo(map);
+
+            // // add control to map
+            // L.control.layers(baseLayers, overlays, {
+            //     position: 'bottomright',
+            //     collapsed: false // false to have the control always open
+            // }).addTo(map);
 
             // set initial state
             osmBaseLayer.addTo(map)
-            federal_electorates.addTo(map)
             state_electorates.addTo(map)
+            federal_electorates_with_labels.addTo(map)
             
             
          </script>
