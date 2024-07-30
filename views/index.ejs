@@ -135,10 +135,10 @@
                 federalElec = properties['Elect_div']
 
                 // get state elec
-                layer = 'electorates:Vic State Electorates 2022'; // Adjust your workspace and layer name
+                layer = 'electorates:State Electorates Current'; // Adjust your workspace and layer name
                 var wfsUrl = buildWfsQueryUrl(latLng, layer)
                 var properties = await fetchPropertiesFromWFS(wfsUrl)
-                stateElec = titleCase(properties['DISTRICT'])
+                stateElec = titleCase(properties['elecName'])
                 console.log(federalElec, stateElec)
 
                 // bind to a popup on the marker
@@ -168,14 +168,14 @@
 
             // define overlay layers
             var state_electorates = L.tileLayer.wms(wmsUrl, {
-                layers: 'electorates:Vic State Electorates 2022',
+                layers: 'electorates:State Electorates Current',
                 format: 'image/png',
                 styles: 'state_electorates_no_labels',
                 transparent: true,
             });
 
             var state_electorates_with_labels = L.tileLayer.wms(wmsUrl, {
-                layers: 'electorates:Vic State Electorates 2022',
+                layers: 'electorates:State Electorates Current',
                 format: 'image/png',
                 styles: 'state_electorates',
                 transparent: true,
