@@ -157,18 +157,67 @@
                 layer = 'electorates:2022 Federal Electorates'; // Adjust your workspace and layer name
                 var wfsUrl = buildWfsQueryUrl(latLng, layer)
                 var properties = await fetchPropertiesFromWFS(wfsUrl)
-                federalElec = properties['Elect_div']
+                federalElec = properties && properties['Elect_div'] ? titleCase(properties['Elect_div']) : 'Not Found';
 
                 // get state elec
                 layer = 'electorates:State Electorates Current'; // Adjust your workspace and layer name
                 var wfsUrl = buildWfsQueryUrl(latLng, layer)
                 var properties = await fetchPropertiesFromWFS(wfsUrl)
-                stateElec = titleCase(properties['elecName'])
-                console.log(federalElec, stateElec)
+                stateElec = properties && properties['elecName'] ? titleCase(properties['elecName']) : 'Not Found';
+                
+                // get lga
+                layer = 'electorates:Local Government Current'; // Adjust your workspace and layer name
+                var wfsUrl = buildWfsQueryUrl(latLng, layer)
+                var properties = await fetchPropertiesFromWFS(wfsUrl)
+                localGov = properties && properties['elecName'] ? titleCase(properties['elecName']) : 'Not Found';
+                
+                // get ward
+                layer = 'electorates:Local Government Wards Current'; // Adjust your workspace and layer name
+                var wfsUrl = buildWfsQueryUrl(latLng, layer)
+                var properties = await fetchPropertiesFromWFS(wfsUrl)
+                localGovWard = properties && properties['elecName'] ? titleCase(properties['elecName']) : '-';
 
                 // bind to a popup on the marker
-                marker.bindPopup("Current Federal Electorate: "+federalElec+"<br />"+"Current State Electorate: "+stateElec);
+                // marker.bindPopup("Current Federal Electorate: " + federalElec + "<br />" + "Current State Electorate: " + stateElec+"<br />" + "Current LGA: " + localGov+"<br />" + "Current LGA Ward: " + localGovWard);
                 
+                let markerContents = `
+                <div id="markerpopup" class="table_component" role="region" tabindex="0">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Area</th>
+                                <th>Current<br />Boundary</th>
+                                <th>Next<br />Election<br />Boundary</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td>Federal</td>
+                                <td>${federalElec}</td>
+                                <td></td>
+                            </tr>
+                            <tr>
+                                <td>State</td>
+                                <td>${stateElec}</td>
+                                <td></td>
+                            </tr>
+                            <tr>
+                                <td>LGA</td>
+                                <td>${localGov}</td>
+                                <td></td>
+                            </tr>
+                            <tr>
+                                <td>LGA Ward</td>
+                                <td>${localGovWard}</td>
+                                <td></td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+                `
+
+                marker.bindPopup(markerContents)
+
                 // open the popup
                 marker.openPopup();
 
@@ -188,12 +237,7 @@
                 }
             });
 
-            // // !! FOR DEV
-            // // Optional: Add a marker manually for testing
-            // var testMarker = L.marker([initialLat, initialLng]).addTo(map);
-            // testMarker.bindPopup("Test Marker");
-
-
+            // federal layers
             var federal_electorates = L.tileLayer.wms(wmsUrl, {
                 layers: 'electorates:2022 Federal Electorates',
                 format: 'image/png',
@@ -208,7 +252,7 @@
                 transparent: true,
             });
 
-            // define overlay layers
+            // state layers
             var state_electorates = L.tileLayer.wms(wmsUrl, {
                 layers: 'electorates:State Electorates Current',
                 format: 'image/png',
@@ -222,7 +266,36 @@
                 styles: 'state_electorates',
                 transparent: true,
             });
+            
+            // local government layers
+            var local_government = L.tileLayer.wms(wmsUrl, {
+                layers: 'electorates:Local Government Current',
+                format: 'image/png',
+                styles: 'local_government_no_labels',
+                transparent: true,
+            });
 
+            var local_government_with_labels = L.tileLayer.wms(wmsUrl, {
+                layers: 'electorates:Local Government Current',
+                format: 'image/png',
+                styles: 'local_government',
+                transparent: true,
+            });
+
+            // local government wards layers
+            var local_government_wards = L.tileLayer.wms(wmsUrl, {
+                layers: 'electorates:Local Government Wards Current',
+                format: 'image/png',
+                styles: 'local_government_wards_no_labels',
+                transparent: true,
+            });
+
+            var local_government_wards_with_labels = L.tileLayer.wms(wmsUrl, {
+                layers: 'electorates:Local Government Wards Current',
+                format: 'image/png',
+                styles: 'local_government_wards',
+                transparent: true,
+            });
 
             // Initialise Leaflet Draw control
             map.addLayer(drawnItems);
@@ -270,6 +343,12 @@
                 "Current State Electorates": {
                     "Borders + Labels": state_electorates_with_labels,
                     "Borders": state_electorates
+                },
+                "Current Local Government Boundaries": {
+                    "LGA: Borders + Labels": local_government_with_labels,
+                    "LGA: Borders": local_government,
+                    "LGA Wards: Borders + Labels": local_government_wards_with_labels,
+                    "LGA Wards: Borders": local_government_wards
                 }
             };
 
@@ -279,12 +358,6 @@
             }
 
             L.control.groupedLayers(baseLayers, groupedOverlays, groupedLayerOptions).addTo(map);
-
-            // // add control to map
-            // L.control.layers(baseLayers, overlays, {
-            //     position: 'bottomright',
-            //     collapsed: false // false to have the control always open
-            // }).addTo(map);
 
             // set initial state
             osmBaseLayer.addTo(map)
