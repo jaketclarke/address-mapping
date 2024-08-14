@@ -154,37 +154,37 @@
                 console.log('Marker clicked at:', latLng);
                
                 // get fed elec
-                layer = 'electorates:2022 Federal Electorates'; // Adjust your workspace and layer name
+                layer = 'electorates:2022 Federal Electorates';
                 var wfsUrl = buildWfsQueryUrl(latLng, layer)
                 var properties = await fetchPropertiesFromWFS(wfsUrl)
                 federalElec = properties && properties['Elect_div'] ? titleCase(properties['Elect_div']) : 'Not Found';
 
                 // get state elec
-                layer = 'electorates:State Electorates Current'; // Adjust your workspace and layer name
+                layer = 'electorates:State Electorates Current';
                 var wfsUrl = buildWfsQueryUrl(latLng, layer)
                 var properties = await fetchPropertiesFromWFS(wfsUrl)
                 stateElec = properties && properties['elecName'] ? titleCase(properties['elecName']) : 'Not Found';
                 
                 // get lga
-                layer = 'electorates:Local Government Current'; // Adjust your workspace and layer name
+                layer = 'electorates:Local Government Current';
                 var wfsUrl = buildWfsQueryUrl(latLng, layer)
                 var properties = await fetchPropertiesFromWFS(wfsUrl)
                 localGov = properties && properties['elecName'] ? titleCase(properties['elecName']) : 'Not Found';
                 
                 // get ward
-                layer = 'electorates:Local Government Wards Current'; // Adjust your workspace and layer name
+                layer = 'electorates:Local Government Wards Current';
                 var wfsUrl = buildWfsQueryUrl(latLng, layer)
                 var properties = await fetchPropertiesFromWFS(wfsUrl)
                 localGovWard = properties && properties['elecName'] ? titleCase(properties['elecName']) : '-';
 
                 // get fed elec
-                layer = 'electorates:Federal Electorates Future'; // Adjust your workspace and layer name
+                layer = 'electorates:Federal Electorates Future';
                 var wfsUrl = buildWfsQueryUrl(latLng, layer)
                 var properties = await fetchPropertiesFromWFS(wfsUrl)
                 federalElecNext = properties && properties['elecName'] ? titleCase(properties['elecName']) : 'Not Found';
 
                 // get fed elec
-                layer = 'electorates:State Electorates Future'; // Adjust your workspace and layer name
+                layer = 'electorates:State Electorates Future';
                 var wfsUrl = buildWfsQueryUrl(latLng, layer)
                 var properties = await fetchPropertiesFromWFS(wfsUrl)
                 stateElecNext = properties && properties['elecName'] ? titleCase(properties['elecName']) : 'Not Found';
@@ -264,6 +264,21 @@
                 transparent: true,
             });
 
+            // federal layers next Election
+            var federal_electorates_future = L.tileLayer.wms(wmsUrl, {
+                layers: 'electorates:Federal Electorates Future',
+                format: 'image/png',
+                styles: 'federal_electorates_no_labels',
+                transparent: true,
+            });
+
+            var federal_electorates_future_with_labels = L.tileLayer.wms(wmsUrl, {
+                layers: 'electorates:Federal Electorates Future',
+                format: 'image/png',
+                styles: 'federal_electorates',
+                transparent: true,
+            });
+
             // state layers
             var state_electorates = L.tileLayer.wms(wmsUrl, {
                 layers: 'electorates:State Electorates Current',
@@ -279,6 +294,22 @@
                 transparent: true,
             });
             
+
+            // state layers
+            var state_electorates_future = L.tileLayer.wms(wmsUrl, {
+                layers: 'electorates:State Electorates Future',
+                format: 'image/png',
+                styles: 'state_electorates_no_labels',
+                transparent: true,
+            });
+
+            var state_electorates_future_with_labels = L.tileLayer.wms(wmsUrl, {
+                layers: 'electorates:State Electorates Future',
+                format: 'image/png',
+                styles: 'federal_electorates',
+                transparent: true,
+            });
+
             // local government layers
             var local_government = L.tileLayer.wms(wmsUrl, {
                 layers: 'electorates:Local Government Current',
@@ -334,15 +365,6 @@
                 drawnItems.addLayer(layer);
             });
 
-            // Creating an overlays object
-            // var overlays = {
-            //     "Federal Electorates": federal_electorates,
-            //     "Federal Electorates with Labels": federal_electorates_with_labels,
-            //     "State Electorates": state_electorates,
-            //     "State Electorates with Labels": state_electorates_with_labels,
-            //     "Points Drawn": drawnItems
-            // };
-
             var baseLayers = {
                 "OpenStreetMap": osmBaseLayer,
             };
@@ -361,7 +383,15 @@
                     "LGA: Borders": local_government,
                     "LGA Wards: Borders + Labels": local_government_wards_with_labels,
                     "LGA Wards: Borders": local_government_wards
-                }
+                },
+                "Future Federal Electorates": {
+                    "Borders + Labels": federal_electorates_future_with_labels,
+                    "Borders": federal_electorates_future
+                },
+                "Future State Electorates": {
+                    "Borders + Labels": state_electorates_future_with_labels,
+                    "Borders": state_electorates_future
+                },
             };
 
             var groupedLayerOptions = {
