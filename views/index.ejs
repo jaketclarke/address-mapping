@@ -177,6 +177,18 @@
                 var properties = await fetchPropertiesFromWFS(wfsUrl)
                 localGovWard = properties && properties['elecName'] ? titleCase(properties['elecName']) : '-';
 
+                // get fed elec
+                layer = 'electorates:Federal Electorates Future'; // Adjust your workspace and layer name
+                var wfsUrl = buildWfsQueryUrl(latLng, layer)
+                var properties = await fetchPropertiesFromWFS(wfsUrl)
+                federalElecNext = properties && properties['elecName'] ? titleCase(properties['elecName']) : 'Not Found';
+
+                // get fed elec
+                layer = 'electorates:State Electorates Future'; // Adjust your workspace and layer name
+                var wfsUrl = buildWfsQueryUrl(latLng, layer)
+                var properties = await fetchPropertiesFromWFS(wfsUrl)
+                stateElecNext = properties && properties['elecName'] ? titleCase(properties['elecName']) : 'Not Found';
+
                 // bind to a popup on the marker
                 // marker.bindPopup("Current Federal Electorate: " + federalElec + "<br />" + "Current State Electorate: " + stateElec+"<br />" + "Current LGA: " + localGov+"<br />" + "Current LGA Ward: " + localGovWard);
                 
@@ -194,12 +206,12 @@
                             <tr>
                                 <td>Federal</td>
                                 <td>${federalElec}</td>
-                                <td></td>
+                                <td>${federalElecNext}</td>
                             </tr>
                             <tr>
                                 <td>State</td>
                                 <td>${stateElec}</td>
-                                <td></td>
+                                <td>${stateElecNext}</td>
                             </tr>
                             <tr>
                                 <td>LGA</td>
