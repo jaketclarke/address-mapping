@@ -154,7 +154,7 @@
                 console.log('Marker clicked at:', latLng);
                
                 // get fed elec
-                layer = 'electorates:2022 Federal Electorates';
+                layer = 'electorates:Federal Electorates Current';
                 var wfsUrl = buildWfsQueryUrl(latLng, layer)
                 var properties = await fetchPropertiesFromWFS(wfsUrl)
                 federalElec = properties && properties['Elect_div'] ? titleCase(properties['Elect_div']) : 'Not Found';
@@ -251,14 +251,14 @@
 
             // federal layers
             var federal_electorates = L.tileLayer.wms(wmsUrl, {
-                layers: 'electorates:2022 Federal Electorates',
+                layers: 'electorates:Federal Electorates Current',
                 format: 'image/png',
                 styles: 'federal_electorates_no_labels',
                 transparent: true,
             });
 
             var federal_electorates_with_labels = L.tileLayer.wms(wmsUrl, {
-                layers: 'electorates:2022 Federal Electorates',
+                layers: 'electorates:Federal Electorates Current',
                 format: 'image/png',
                 styles: 'federal_electorates',
                 transparent: true,
