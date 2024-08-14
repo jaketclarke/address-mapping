@@ -157,7 +157,7 @@
                 layer = 'electorates:Federal Electorates Current';
                 var wfsUrl = buildWfsQueryUrl(latLng, layer)
                 var properties = await fetchPropertiesFromWFS(wfsUrl)
-                federalElec = properties && properties['Elect_div'] ? titleCase(properties['Elect_div']) : 'Not Found';
+                federalElec = properties && properties['elecName'] ? titleCase(properties['elecName']) : 'Not Found';
 
                 // get state elec
                 layer = 'electorates:State Electorates Current';
