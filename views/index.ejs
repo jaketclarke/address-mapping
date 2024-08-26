@@ -177,21 +177,31 @@
                 var properties = await fetchPropertiesFromWFS(wfsUrl)
                 localGovWard = properties && properties['elecName'] ? titleCase(properties['elecName']) : '-';
 
-                // get fed elec
+                // get fed elec next
                 layer = 'electorates:Federal Electorates Future';
                 var wfsUrl = buildWfsQueryUrl(latLng, layer)
                 var properties = await fetchPropertiesFromWFS(wfsUrl)
                 federalElecNext = properties && properties['elecName'] ? titleCase(properties['elecName']) : 'Not Found';
 
-                // get fed elec
+                // get state electorate next
                 layer = 'electorates:State Electorates Future';
                 var wfsUrl = buildWfsQueryUrl(latLng, layer)
                 var properties = await fetchPropertiesFromWFS(wfsUrl)
                 stateElecNext = properties && properties['elecName'] ? titleCase(properties['elecName']) : 'Not Found';
 
-                // bind to a popup on the marker
-                // marker.bindPopup("Current Federal Electorate: " + federalElec + "<br />" + "Current State Electorate: " + stateElec+"<br />" + "Current LGA: " + localGov+"<br />" + "Current LGA Ward: " + localGovWard);
-                
+                // // get postcode
+                layer = 'electorates:POA_2021_AUST_GDA2020';
+                var wfsUrl = buildWfsQueryUrl(latLng, layer)
+                var properties = await fetchPropertiesFromWFS(wfsUrl)
+                postcode = properties && properties['POA_NAME21'] ? titleCase(properties['POA_NAME21']) : 'Not Found';
+
+                // get suburb
+                layer = 'electorates:SAL_2021_AUST_GDA2020_with_clean_name';
+                var wfsUrl = buildWfsQueryUrl(latLng, layer)
+                var properties = await fetchPropertiesFromWFS(wfsUrl)
+                suburb = properties && properties['Name'] ? titleCase(properties['Name']) : 'Not Found';
+
+
                 let markerContents = `
                 <div id="markerpopup" class="table_component" role="region" tabindex="0">
                     <table>
@@ -223,8 +233,19 @@
                                 <td>${localGovWard}</td>
                                 <td class="notdefined"></td>
                             </tr>
+                            <tr>
+                                <td>Suburb/Locality</td>
+                                <td>${suburb}*</td>
+                                <td class="notdefined"></td>
+                            </tr>
+                            <tr>
+                                <td>Postcode</td>
+                                <td>${postcode}*</td>
+                                <td class="notdefined"></td>
+                            </tr>
                         </tbody>
                     </table>
+                    <p><i>* These lookups are based on the ASGS Edition 3. Read more <a target="_" href="https://www.abs.gov.au/statistics/standards/australian-statistical-geography-standard-asgs-edition-3/jul2021-jun2026">here.</a></i></p>
                 </div>
                 `
 
