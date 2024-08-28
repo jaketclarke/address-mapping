@@ -1,0 +1,434 @@
+<!DOCTYPE html>
+<html lang="en">
+
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>Address Mapping</title>
+
+        <!-- Load stylesheets-->
+        <link rel="stylesheet"
+            href="https://unpkg.com/leaflet/dist/leaflet.css" />
+        <link rel="stylesheet"
+            href="https://cdn.jsdelivr.net/gh/opencagedata/leaflet-opencage-geocoding@v2.0.0/dist/css/L.Control.OpenCageGeocoding.min.css" />
+        <link rel="stylesheet"
+            href="https://unpkg.com/leaflet-draw/dist/leaflet.draw.css" />
+        <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet-groupedlayercontrol/0.6.1/leaflet.groupedlayercontrol.min.css" />
+        <link rel="stylesheet" href="../stylesheets/styles.css">
+    </head>
+
+    <body>
+        <!-- load scripts -->
+        <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+        <script
+            src="https://cdn.jsdelivr.net/gh/opencagedata/leaflet-opencage-geocoding@v2.0.0/dist/js/L.Control.OpenCageGeocoding.min.js"></script>
+        <script
+            src="https://unpkg.com/leaflet-draw/dist/leaflet.draw.js"></script>
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet-groupedlayercontrol/0.6.1/leaflet.groupedlayercontrol.min.js"></script>
+        <!-- set a div for our map -->
+        <div id="mapone"></div>
+
+        <script>
+            // This key comes from a .env file
+            // !! It will be public - i.e ctrl + u in a browser
+            // !! in any kind of prod needs IP / domain restriction!
+            const mapsApiKey = '<%= mapsApiKey %>';
+            const geoserverUrl = '<%= geoserverUrl %>';
+
+            // url is in the form 'https://geoserver.domainname.com.au/geoserver/workspacename/'
+            // we need to put the type of query on the end
+            const wmsUrl = geoserverUrl + 'wms'
+
+            // map starting point
+            let initialLng = 144.9
+            let initialLat = -37.8
+            let initialZoom = 8
+
+            // create map
+            var map = L.map('mapone').setView([initialLat, initialLng], initialZoom);
+
+            // add osm base layer
+            var osmBaseLayer = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}', {
+                attribution: '&copy; Tiles &copy; Esri &mdash; Source: Esri, DeLorme, NAVTEQ, USGS, Intermap, iPC, NRCAN, Esri Japan, METI, Esri China (Hong Kong), Esri (Thailand), TomTom, 2012'
+            })
+
+            // opencage geocoding control
+            var options = {
+                key: mapsApiKey,
+                position: 'topright',
+                countrycode: 'AU',
+                limit: 5,
+                position: 'topright',
+                placeholder: 'Search for an address',
+                errorMessage: 'Nothing found.',
+                showResultIcons: false,
+                collapsed: false,
+                expand: 'click',
+                addResultToMap: true
+            };
+
+            // for markers
+            const drawnItems = new L.FeatureGroup();
+            
+            // put control on map
+            var control = L.Control.openCageGeocoding(options).addTo(map);
+
+            control.markGeocode = function(result) {
+
+                lat = result.center.lat
+                lng = result.center.lng
+
+                // add marker to layer                
+                var marker = L.marker([lat, lng]).addTo(drawnItems);
+
+                // move map to centre on new point
+                var zoomLevel = map.getZoom()
+
+                map.setView([lat, lng], zoomLevel); // set zoom level when marker added
+
+                maker.openPopup()
+
+            };
+
+            // function to get properties from wfs query
+            function fetchPropertiesFromWFS(queryUrl) {
+                return fetch(queryUrl)
+                    .then(function(response) {
+                        if (!response.ok) {
+                            throw new Error('Network response was not ok');
+                        }
+                        return response.json();
+                    })
+                    .then(function(data) {
+                        // Handle GeoServer response
+                        if (data.features.length > 0) {
+                            var feature = data.features[0];
+                            var properties = feature.properties; // Access properties of the intersecting feature
+                            console.log('Feature properties:', properties);
+                            return properties; // Return the properties object
+                        } else {
+                            console.log('No feature found.');
+                            return null; // Return null if no feature is found
+                        }
+                    })
+                    .catch(function(error) {
+                        console.error('Error fetching data:', error);
+                        throw error; // Re-throw the error for handling in the caller function
+                    });
+            }
+            
+            // function to build wfs query for a lat lng pair
+            // returns the properties of the polygon they fall into on a polygon layer
+            function buildWfsQueryUrl(latLng, layer) {
+                var typeName = layer
+
+                wfsUrl = '<%= geoserverUrl %>' + 'ows'
+                console.log(wfsUrl)
+
+                var filter = 'INTERSECTS(the_geom, POINT(' + latLng.lng + ' ' + latLng.lat + '))'
+            
+                var queryUrl = wfsUrl + '?' +
+                'service=WFS' +
+                '&version=1.0.0' +
+                '&request=GetFeature' +
+                '&typeName=' + typeName +
+                '&outputFormat=application/json' +
+                '&srsName=EPSG:4326' +
+                '&cql_filter=' + encodeURIComponent(filter);
+
+                return queryUrl
+            }
+
+            // returns "Joseph Robinette Biden" from "joseph robinette biden", "JOSEPH ROBINETTE BIDEN", etc
+            function titleCase(str) {
+                return str.toLowerCase().replace(/(?:^|\s)\w/g, function(match) {
+                    return match.toUpperCase();
+                });
+            }
+
+            // bind logic to a marker click
+            // get properties from various geoserver layers and put them in the popup
+            async function handleMarkerClick(event) {
+                var marker = event.target;
+                var latLng = marker.getLatLng();
+                console.log('Marker clicked at:', latLng);
+               
+                // get fed elec
+                layer = 'electorates:Federal Electorates Current';
+                var wfsUrl = buildWfsQueryUrl(latLng, layer)
+                var properties = await fetchPropertiesFromWFS(wfsUrl)
+                federalElec = properties && properties['elecName'] ? titleCase(properties['elecName']) : 'Not Found';
+
+                // get state elec
+                layer = 'electorates:State Electorates Current';
+                var wfsUrl = buildWfsQueryUrl(latLng, layer)
+                var properties = await fetchPropertiesFromWFS(wfsUrl)
+                stateElec = properties && properties['elecName'] ? titleCase(properties['elecName']) : 'Not Found';
+                
+                // get lga
+                layer = 'electorates:Local Government Current';
+                var wfsUrl = buildWfsQueryUrl(latLng, layer)
+                var properties = await fetchPropertiesFromWFS(wfsUrl)
+                localGov = properties && properties['elecName'] ? titleCase(properties['elecName']) : 'Not Found';
+                
+                // get ward
+                layer = 'electorates:Local Government Wards Current';
+                var wfsUrl = buildWfsQueryUrl(latLng, layer)
+                var properties = await fetchPropertiesFromWFS(wfsUrl)
+                localGovWard = properties && properties['elecName'] ? titleCase(properties['elecName']) : '-';
+
+                // get fed elec next
+                layer = 'electorates:Federal Electorates Future';
+                var wfsUrl = buildWfsQueryUrl(latLng, layer)
+                var properties = await fetchPropertiesFromWFS(wfsUrl)
+                federalElecNext = properties && properties['elecName'] ? titleCase(properties['elecName']) : 'Not Found';
+
+                // get state electorate next
+                layer = 'electorates:State Electorates Future';
+                var wfsUrl = buildWfsQueryUrl(latLng, layer)
+                var properties = await fetchPropertiesFromWFS(wfsUrl)
+                stateElecNext = properties && properties['elecName'] ? titleCase(properties['elecName']) : 'Not Found';
+
+                // // get postcode
+                layer = 'electorates:POA_2021_AUST_GDA2020';
+                var wfsUrl = buildWfsQueryUrl(latLng, layer)
+                var properties = await fetchPropertiesFromWFS(wfsUrl)
+                postcode = properties && properties['POA_NAME21'] ? titleCase(properties['POA_NAME21']) : 'Not Found';
+
+                // get suburb
+                layer = 'electorates:SAL_2021_AUST_GDA2020_with_clean_name';
+                var wfsUrl = buildWfsQueryUrl(latLng, layer)
+                var properties = await fetchPropertiesFromWFS(wfsUrl)
+                suburb = properties && properties['Name'] ? titleCase(properties['Name']) : 'Not Found';
+
+
+                let markerContents = `
+                <div id="markerpopup" class="table_component" role="region" tabindex="0">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Area</th>
+                                <th>Current<br />Boundary</th>
+                                <th>Next<br />Election<br />Boundary</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td>Federal</td>
+                                <td>${federalElec}</td>
+                                <td>${federalElecNext}</td>
+                            </tr>
+                            <tr>
+                                <td>State</td>
+                                <td>${stateElec}</td>
+                                <td>${stateElecNext}</td>
+                            </tr>
+                            <tr>
+                                <td>LGA</td>
+                                <td>${localGov}</td>
+                                <td class="notdefined"></td>
+                            </tr>
+                            <tr>
+                                <td>LGA Ward</td>
+                                <td>${localGovWard}</td>
+                                <td class="notdefined"></td>
+                            </tr>
+                            <tr>
+                                <td>Suburb/Locality</td>
+                                <td>${suburb}*</td>
+                                <td class="notdefined"></td>
+                            </tr>
+                            <tr>
+                                <td>Postcode</td>
+                                <td>${postcode}*</td>
+                                <td class="notdefined"></td>
+                            </tr>
+                        </tbody>
+                    </table>
+                    <p><i>* These lookups are based on the ASGS Edition 3. Read more <a target="_" href="https://www.abs.gov.au/statistics/standards/australian-statistical-geography-standard-asgs-edition-3/jul2021-jun2026">here.</a></i></p>
+                </div>
+                `
+
+                marker.bindPopup(markerContents)
+
+                // open the popup
+                marker.openPopup();
+
+                // set zoom level
+                var zoomLevel = map.getZoom()
+
+                map.setView(latLng, zoomLevel); // Set zoom level to 15 when marker is clicked
+            
+            }
+
+            //Todo can this be separate?
+            // Manually bind click event to markers on map load
+            map.on('layeradd', function (event) {
+                var layer = event.layer;
+                if (layer instanceof L.Marker) {
+                    layer.on('click', handleMarkerClick);
+                }
+            });
+
+            // federal layers
+            var federal_electorates = L.tileLayer.wms(wmsUrl, {
+                layers: 'electorates:Federal Electorates Current',
+                format: 'image/png',
+                styles: 'federal_electorates_no_labels',
+                transparent: true,
+            });
+
+            var federal_electorates_with_labels = L.tileLayer.wms(wmsUrl, {
+                layers: 'electorates:Federal Electorates Current',
+                format: 'image/png',
+                styles: 'federal_electorates',
+                transparent: true,
+            });
+
+            // federal layers next Election
+            var federal_electorates_future = L.tileLayer.wms(wmsUrl, {
+                layers: 'electorates:Federal Electorates Future',
+                format: 'image/png',
+                styles: 'federal_electorates_no_labels',
+                transparent: true,
+            });
+
+            var federal_electorates_future_with_labels = L.tileLayer.wms(wmsUrl, {
+                layers: 'electorates:Federal Electorates Future',
+                format: 'image/png',
+                styles: 'federal_electorates',
+                transparent: true,
+            });
+
+            // state layers
+            var state_electorates = L.tileLayer.wms(wmsUrl, {
+                layers: 'electorates:State Electorates Current',
+                format: 'image/png',
+                styles: 'state_electorates_no_labels',
+                transparent: true,
+            });
+
+            var state_electorates_with_labels = L.tileLayer.wms(wmsUrl, {
+                layers: 'electorates:State Electorates Current',
+                format: 'image/png',
+                styles: 'state_electorates',
+                transparent: true,
+            });
+            
+
+            // state layers
+            var state_electorates_future = L.tileLayer.wms(wmsUrl, {
+                layers: 'electorates:State Electorates Future',
+                format: 'image/png',
+                styles: 'state_electorates_no_labels',
+                transparent: true,
+            });
+
+            var state_electorates_future_with_labels = L.tileLayer.wms(wmsUrl, {
+                layers: 'electorates:State Electorates Future',
+                format: 'image/png',
+                styles: 'federal_electorates',
+                transparent: true,
+            });
+
+            // local government layers
+            var local_government = L.tileLayer.wms(wmsUrl, {
+                layers: 'electorates:Local Government Current',
+                format: 'image/png',
+                styles: 'local_government_no_labels',
+                transparent: true,
+            });
+
+            var local_government_with_labels = L.tileLayer.wms(wmsUrl, {
+                layers: 'electorates:Local Government Current',
+                format: 'image/png',
+                styles: 'local_government',
+                transparent: true,
+            });
+
+            // local government wards layers
+            var local_government_wards = L.tileLayer.wms(wmsUrl, {
+                layers: 'electorates:Local Government Wards Current',
+                format: 'image/png',
+                styles: 'local_government_wards_no_labels',
+                transparent: true,
+            });
+
+            var local_government_wards_with_labels = L.tileLayer.wms(wmsUrl, {
+                layers: 'electorates:Local Government Wards Current',
+                format: 'image/png',
+                styles: 'local_government_wards',
+                transparent: true,
+            });
+
+            // Initialise Leaflet Draw control
+            map.addLayer(drawnItems);
+
+            const drawControl = new L.Control.Draw({
+                draw: { 
+                    polygon: false,
+                    circlemarker: false,
+                    circle: false,
+                    rectangle: false,
+                    polyline: false
+                },
+                edit: {
+                    featureGroup: drawnItems,
+                    edit: false,
+                    remove: false
+                }
+            });
+            map.addControl(drawControl);
+
+            // Handle the creation of new markers
+            map.on(L.Draw.Event.CREATED, function (e) {
+                const layer = e.layer;
+                drawnItems.addLayer(layer);
+            });
+
+            var baseLayers = {
+                "OpenStreetMap": osmBaseLayer,
+            };
+
+            var groupedOverlays = {
+                "Current Federal Electorates": {
+                    "Borders + Labels": federal_electorates_with_labels,
+                    "Borders": federal_electorates
+                },
+                "Current State Electorates": {
+                    "Borders + Labels": state_electorates_with_labels,
+                    "Borders": state_electorates
+                },
+                "Current Local Government Boundaries": {
+                    "LGA: Borders + Labels": local_government_with_labels,
+                    "LGA: Borders": local_government,
+                    "LGA Wards: Borders + Labels": local_government_wards_with_labels,
+                    "LGA Wards: Borders": local_government_wards
+                },
+                "Future Federal Electorates": {
+                    "Borders + Labels": federal_electorates_future_with_labels,
+                    "Borders": federal_electorates_future
+                },
+                "Future State Electorates": {
+                    "Borders + Labels": state_electorates_future_with_labels,
+                    "Borders": state_electorates_future
+                },
+            };
+
+            var groupedLayerOptions = {
+                position: 'bottomright',
+                collapsed: false // false to have the control always open
+            }
+
+            L.control.groupedLayers(baseLayers, groupedOverlays, groupedLayerOptions).addTo(map);
+
+            // set initial state
+            osmBaseLayer.addTo(map)
+            state_electorates.addTo(map)
+            federal_electorates_with_labels.addTo(map)
+            
+            
+         </script>
+    </body>
+
+</html>
